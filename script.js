@@ -1,0 +1,18 @@
+const boardEl=document.querySelector('#board'),status=document.querySelector('#status'),cells=[];
+const $=s=>document.querySelector(s),lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let state={b:Array(9).fill(''),p:'X',active:true,mode:'bot',score:{X:0,O:0,T:0},sound:true,player:'Player 1',friend:'Player 2'};
+for(let i=0;i<9;i++){const b=document.createElement('button');b.className='cell';b.setAttribute('aria-label',`Cell ${i+1}`);b.onclick=()=>move(i);boardEl.append(b);cells.push(b)}
+function tone(f){if(!state.sound)return;try{let c=new AudioContext,o=c.createOscillator(),g=c.createGain();o.frequency.value=f;g.gain.setValueAtTime(.04,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.08);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.08)}catch(e){}}
+function person(mark){return mark==='X'?state.player:(state.mode==='bot'?'Bot':state.friend)}
+function line(a=state.b){return lines.find(l=>a[l[0]]&&l.every(i=>a[i]===a[l[0]]))}
+function say(t,bot=false){status.innerHTML=`<span></span>${t}`;status.classList.toggle('bot',bot)}
+function render(){cells.forEach((c,i)=>{c.textContent=state.b[i];c.className='cell '+state.b[i].toLowerCase();c.disabled=!state.active||!!state.b[i]||(state.mode==='bot'&&state.p==='O')});$('#sx').textContent=state.score.X;$('#so').textContent=state.score.O;$('#st').textContent=state.score.T;$('#playerLabel').textContent=state.player.toUpperCase();$('#opp').textContent=state.mode==='bot'?'BOT':state.friend.toUpperCase();$('#welcome').textContent=`${state.player}, make three in a row to win.`}
+function end(){const l=line();if(l){state.active=false;state.score[state.p]++;say(`${person(state.p)} wins this round!`,state.p==='O');tone(660);render();l.forEach(i=>cells[i].classList.add('win'));return true}if(state.b.every(Boolean)){state.active=false;state.score.T++;say('A draw — great defense.');render();return true}return false}
+function move(i){if(!state.active||state.b[i])return;state.b[i]=state.p;tone(state.p==='X'?440:330);render();if(end())return;state.p=state.p==='X'?'O':'X';const isBot=state.mode==='bot'&&state.p==='O';say(isBot?'Bot is thinking…':`${person(state.p)}’s turn — play ${state.p}`,isBot||state.p==='O');render();if(isBot)setTimeout(bot,430)}
+function bot(){const free=state.b.map((v,i)=>v?null:i).filter(v=>v!==null);let pick=null;for(const mark of ['O','X']){for(const i of free){const t=[...state.b];t[i]=mark;if(line(t)){pick=i;break}}if(pick!==null)break}if(pick===null){const corners=[0,2,6,8].filter(i=>!state.b[i]);pick=!state.b[4]?4:(corners[0]??free[Math.floor(Math.random()*free.length)])}move(pick)}
+function fresh(){state.b=Array(9).fill('');state.p='X';state.active=true;say(`${state.player}’s turn — play X`);render()}
+function openNames(){const f=$('#friendWrap');f.style.display=state.mode==='friend'?'block':'none';$('#playerName').value=state.player==='Player 1'?'':state.player;$('#friendName').value=state.friend==='Player 2'?'':state.friend;$('#nameModal').classList.remove('hidden');setTimeout(()=>$('#playerName').focus(),50)}
+$('#nameForm').onsubmit=e=>{e.preventDefault();state.player=$('#playerName').value.trim()||'Player 1';state.friend=$('#friendName').value.trim()||'Player 2';$('#nameModal').classList.add('hidden');fresh()};
+$('#new').onclick=fresh;$('#reset').onclick=()=>{state.score={X:0,O:0,T:0};fresh()};$('#names').onclick=openNames;$('#sound').onclick=e=>{state.sound=!state.sound;e.target.textContent=state.sound?'♪':'×'};
+document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;document.querySelectorAll('.modes button').forEach(x=>x.classList.toggle('active',x===b));fresh()});
+render();openNames();
